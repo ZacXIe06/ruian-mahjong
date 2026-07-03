@@ -1,0 +1,13 @@
+node_modules/
+deploy/tunnel.local.json
+deploy/turn.local.json
+deploy/rooms.snapshot.json
+cloudflared-tunnel.log
+.claude/
+.vercel/
+.env
+.env.*
+
+# Cloudflare 隧道凭证（切勿提交）
+.cloudflared/
+*.pem

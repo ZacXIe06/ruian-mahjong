@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>瑞安麻将</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="game-page">
+
+<div class="top-bar">
+  <div class="top-caijin">
+    <span class="top-label">财神</span>
+    <div id="center-caijin"></div>
+    <span id="dice-display" class="dice-badge"></span>
+    <span id="rule-display" class="rule-badge">瑞安麻将</span>
+  </div>
+
+  <div class="top-scores" id="top-scores">
+    <div class="score-chip" id="chip-0"><span class="chip-name"></span><span class="chip-meta"></span><span class="chip-score"></span></div>
+    <div class="score-chip" id="chip-1"><span class="chip-name"></span><span class="chip-meta"></span><span class="chip-score"></span></div>
+    <div class="score-chip" id="chip-2"><span class="chip-name"></span><span class="chip-meta"></span><span class="chip-score"></span></div>
+    <div class="score-chip" id="chip-3"><span class="chip-name"></span><span class="chip-meta"></span><span class="chip-score"></span></div>
+  </div>
+
+  <div class="top-right">
+    <span id="hud-status" class="status-text">等待游戏…</span>
+    <span class="wall-badge">牌 <strong id="wall-count">?</strong></span>
+    <div class="media-controls">
+      <button class="media-btn" id="btn-camera" title="开启摄像头" type="button">摄</button>
+      <button class="media-btn" id="btn-mic" title="开启麦克风" type="button">麦</button>
+      <button class="media-btn log-btn" id="btn-log" title="查看回合日志" type="button">记</button>
+    </div>
+  </div>
+</div>
+
+<div class="table">
+  <div class="player-area top" id="area-top">
+    <div class="player-name-tag" id="name-top">对家<span class="wind-badge"></span></div>
+    <div class="open-melds" id="melds-top"></div>
+    <div class="my-hand" id="hand-top"></div>
+  </div>
+
+  <div class="player-area left" id="area-left">
+    <div class="player-name-tag" id="name-left">上家<span class="wind-badge"></span></div>
+    <div class="open-melds" id="melds-left"></div>
+    <div class="my-hand" id="hand-left"></div>
+  </div>
+
+  <div class="center-panel">
+    <div class="discard-zone dz-top" id="discards-top"></div>
+    <div class="center-row">
+      <div class="discard-zone dz-left" id="discards-left"></div>
+      <div class="center-core">
+        <div class="turn-pointer" id="turn-pointer">
+          <span class="turn-arrow">▼</span>
+          <span class="turn-name">等待</span>
+        </div>
+        <div class="wall-big" id="wall-count-center">?</div>
+        <div class="wall-lbl">张</div>
+      </div>
+      <div class="discard-zone dz-right" id="discards-right"></div>
+    </div>
+    <div class="discard-zone dz-bottom" id="discards-bottom"></div>
+  </div>
+
+  <div class="player-area right" id="area-right">
+    <div class="player-name-tag" id="name-right">下家<span class="wind-badge"></span></div>
+    <div class="open-melds" id="melds-right"></div>
+    <div class="my-hand" id="hand-right"></div>
+  </div>
+
+  <div class="player-area bottom" id="area-bottom">
+    <div class="open-melds" id="melds-bottom"></div>
+    <div class="my-hand" id="hand-bottom"></div>
+    <div class="player-name-tag" id="name-bottom">我<span class="wind-badge"></span></div>
+  </div>
+</div>
+
+<div class="video-corners" aria-hidden="true">
+  <div class="seat-video video-top hidden" id="video-top"><video autoplay playsinline></video><span></span></div>
+  <div class="seat-video video-left hidden" id="video-left"><video autoplay playsinline></video><span></span></div>
+  <div class="seat-video video-right hidden" id="video-right"><video autoplay playsinline></video><span></span></div>
+  <div class="seat-video video-bottom hidden" id="video-bottom"><video autoplay muted playsinline></video><span></span></div>
+</div>
+
+<div class="action-bar hidden" id="action-bar"></div>
+<div class="toast" id="toast"></div>
+<div class="overlay hidden" id="overlay">
+  <div id="overlay-content"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/game.js"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "mode": "named",
+  "tunnelName": "ruian-mahjong",
+  "hostname": "mahjong.example.com",
+  "port": 3000
+}

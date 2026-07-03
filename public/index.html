@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>瑞安麻将</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="lobby-page">
+<div class="lobby-container">
+  <h1 class="logo">瑞安麻将</h1>
+  <p class="subtitle">4 人联机网页版</p>
+
+  <div class="card" id="name-section">
+    <label for="player-name">你的名字</label>
+    <input type="text" id="player-name" maxlength="8" placeholder="输入名字" />
+  </div>
+
+  <div class="card" id="action-section">
+    <label for="ruleset-select">麻将规则</label>
+    <select id="ruleset-select" class="ruleset-select">
+      <option value="ruian" selected>瑞安麻将（默认）</option>
+      <option value="pingyang_taipao">平阳台炮</option>
+    </select>
+    <button class="btn btn-primary" id="btn-create">创建房间</button>
+    <div class="divider">或者</div>
+    <div class="join-row">
+      <input type="text" id="room-code" maxlength="5" placeholder="房间码" style="text-transform:uppercase" />
+      <button class="btn btn-secondary" id="btn-join">加入</button>
+    </div>
+  </div>
+
+  <details class="card lobby-rules" open>
+    <summary>开局前看一眼</summary>
+    <ul>
+      <li>创建房间时可以选择规则；瑞安麻将为默认规则。</li>
+      <li>任意时间长按自己的手牌，再拖到目标位置，可以整理手牌顺序。</li>
+      <li>结算框里玩家名后的括号是最后财神数量，例如（2）表示有 2 张财神。</li>
+      <li>胡牌后各自填写“我给其他人多少”，分数会自动同步；不填默认 0。</li>
+      <li>点“下一局”后会显示确认人数，4/4 后才重新洗牌发牌。</li>
+      <li>长按其他玩家姓名可以发补偿红包，也可以在结算后申请换位置。</li>
+    </ul>
+  </details>
+
+  <div class="card hidden" id="room-section">
+    <div class="room-info">
+      <span>房间码：</span>
+      <strong id="display-room-id"></strong>
+      <button class="btn-copy" id="btn-copy">复制</button>
+    </div>
+    <div class="room-rule-info">规则：<strong id="display-ruleset">瑞安麻将</strong></div>
+    <div id="player-list" class="player-list"></div>
+    <button class="btn btn-primary hidden" id="btn-start">开始游戏</button>
+    <p class="waiting-text" id="waiting-text">等待其他玩家加入...</p>
+  </div>
+
+  <div id="error-msg" class="error-msg"></div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/lobby.js"></script>
+</body>
+</html>

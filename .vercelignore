@@ -1,0 +1,5 @@
+cloudflared-tunnel.log
+deploy/rooms.snapshot.json
+*.zip
+*.7z
+*.psd

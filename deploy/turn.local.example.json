@@ -1,0 +1,5 @@
+{
+  "note": "Copy this file to turn.local.json, then fill either meteredTurnUrl or iceServers.",
+  "meteredTurnUrl": "",
+  "iceServers": []
+}

@@ -1,0 +1,12 @@
+# Cloudflare Named Tunnel 配置模板
+# 运行 scripts/setup-named-tunnel.ps1 会自动生成正式配置到 %USERPROFILE%\.cloudflared\config.yml
+
+tunnel: ruian-mahjong
+credentials-file: C:\Users\YOUR_USER\.cloudflared\YOUR_TUNNEL_UUID.json
+
+ingress:
+  # 固定域名 → 本地麻将服务器
+  - hostname: mahjong.YOUR_DOMAIN.com
+    service: http://localhost:3000
+  # 必须保留：未匹配请求返回 404
+  - service: http_status:404

@@ -1,0 +1,19 @@
+{
+  "name": "ruian-mahjong",
+  "version": "1.0.0",
+  "description": "瑞安麻将 4人联机网页版",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/rules.test.js",
+    "tunnel:setup": "powershell -ExecutionPolicy Bypass -File scripts/setup-named-tunnel.ps1",
+    "tunnel:start": "powershell -ExecutionPolicy Bypass -File scripts/start-server.ps1",
+    "vercel:pull": "vercel pull --yes",
+    "vercel:deploy": "vercel deploy --yes",
+    "vercel:deploy:prod": "vercel deploy --prod --yes"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
+  }
+}
