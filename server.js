@@ -13,6 +13,7 @@ const {
   getFlowerTiles, hasFlowersInHand, replaceFlowerTiles, getPlayableHand,
 } = require('./game/game-state');
 const { isBai } = require('./game/tiles');
+const { calcWinScore } = require('./game/scorer');
 const { RULESETS, normalizeRuleset } = require('./game/rulesets');
 const { STORE_MODE, loadRooms, saveRooms } = require('./storage/room-store');
 
