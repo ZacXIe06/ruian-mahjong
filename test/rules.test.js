@@ -4,6 +4,7 @@ const { checkWin } = require('../game/win-check');
 const { calcWinScore } = require('../game/scorer');
 const { buildDeck, FLOWERS, determineCaijinTiles } = require('../game/tiles');
 const { createGame, replaceFlowerTiles, getFlowerTiles, getPlayableHand, doPeng, doChi } = require('../game/game-state');
+const { getChiOptions } = require('../game/rule-logic');
 
 function win(hand, caijin = '4m', melds = []) {
   return checkWin(hand, melds, caijin);
@@ -514,6 +515,17 @@ test('ruian bai can eat as caijin face but actual caijin cannot', () => {
   caijinGame.discardPile = [{ tile: '4m', playerId: 'a' }];
   caijinGame.lastDiscard = { tile: '4m', playerId: 'a' };
   assert.strictEqual(doChi(caijinGame, 'b', '4m', ['5m', '6m']), false);
+});
+
+test('ruleset chi options stay isolated between ruian and pingyang', () => {
+  const ruianBaiOpts = getChiOptions({ ruleset: 'ruian', caijinTile: '6m' }, ['5m', 'bai'], '4m');
+  assert.deepStrictEqual(ruianBaiOpts, [['5m', 'bai']]);
+
+  const ruianCaijinOpts = getChiOptions({ ruleset: 'ruian', caijinTile: '6m' }, ['5m', '6m'], '4m');
+  assert.deepStrictEqual(ruianCaijinOpts, []);
+
+  const pingyangOpts = getChiOptions({ ruleset: 'pingyang_taipao', caijinTile: '6m' }, ['5m', '6m'], '4m');
+  assert.deepStrictEqual(pingyangOpts, [['5m', '6m']]);
 });
 
 console.log('rules tests complete');

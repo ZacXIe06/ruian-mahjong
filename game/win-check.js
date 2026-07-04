@@ -1,5 +1,6 @@
 'use strict';
 const { isNumbered, isHonor, isWind, isYaojiu, isBai, isFlower, getSuit, getValue } = require('./tiles');
+const { isRuianRuleset, isPingyangRuleset } = require('./rule-logic');
 
 // Map tile string -> index (0-32)
 // 0-8: 1m-9m, 9-17: 1t-9t, 18-26: 1b-9b
@@ -10,14 +11,6 @@ const TOTAL = 34;
 function getCaijinSet(caijinTile, options = {}) {
   if (Array.isArray(options.caijinTiles) && options.caijinTiles.length) return new Set(options.caijinTiles);
   return new Set(caijinTile ? [caijinTile] : []);
-}
-
-function isRuianRuleset(options = {}) {
-  return !options.ruleset || options.ruleset === 'ruian';
-}
-
-function isPingyangRuleset(options = {}) {
-  return options.ruleset === 'pingyang_taipao';
 }
 
 function tileIdx(tile) {

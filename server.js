@@ -15,6 +15,7 @@ const {
 const { isBai } = require('./game/tiles');
 const { calcWinScore } = require('./game/scorer');
 const { RULESETS, normalizeRuleset } = require('./game/rulesets');
+const { countMeldMatches, canUseTileForMeld, getChiOptions } = require('./game/rule-logic');
 const { STORE_MODE, loadRooms, saveRooms } = require('./storage/room-store');
 
 const app = express();
@@ -1236,9 +1237,7 @@ io.on('connection', (socket) => {
 function computeAvailableActions(g, tile, fromPlayerId) {
   const actions = {};
   const fromIdx = g.playerIds.indexOf(fromPlayerId);
-  const isRuian = g.ruleset !== 'pingyang_taipao';
-  const discardFace = isRuian && isBai(tile) ? g.caijinTile : tile;
-  const canMeldDiscard = !isRuian || tile !== g.caijinTile;
+  const canMeldDiscard = canUseTileForMeld(g, tile);
 
   for (let i = 0; i < 4; i++) {
     const pid = g.playerIds[i];
@@ -1249,49 +1248,20 @@ function computeAvailableActions(g, tile, fromPlayerId) {
     if (checkPlayerWin(g, pid, tile, false).win) acts.push('hu');
 
     if (canMeldDiscard) {
-      const realCount = hand.filter(t => {
-        if (isRuian && t === g.caijinTile) return false;
-        const handFace = isRuian && isBai(t) ? g.caijinTile : t;
-        return handFace === discardFace;
-      }).length;
+      const realCount = countMeldMatches(g, hand, tile);
       if (realCount >= 2) acts.push('peng');
       if (realCount >= 3) acts.push('gang');
     }
 
     const nextIdx = (fromIdx + 1) % 4;
     if (i === nextIdx) {
-      const opts = getChiOptions(hand, tile, g.caijinTile, g.ruleset);
+      const opts = getChiOptions(g, hand, tile);
       if (opts.length) { acts.push('chi'); actions[pid + '_chi'] = opts; }
     }
 
     if (acts.length) actions[pid] = acts;
   }
   return actions;
-}
-
-function getChiOptions(hand, tile, caijinTile, ruleset = 'ruian') {
-  const isRuian = ruleset !== 'pingyang_taipao';
-  if (isRuian && tile === caijinTile) return [];
-  const tileFace = isRuian && isBai(tile) ? caijinTile : tile;
-  if (!tileFace || !tileFace.match(/^\d[mtb]$/)) return [];
-  const suit = tileFace.slice(-1), val = parseInt(tileFace, 10);
-  const opts = [];
-  for (const [a, b] of [[val-2,val-1],[val-1,val+1],[val+1,val+2]]) {
-    if (a < 1 || b > 9) continue;
-    const t1 = `${a}${suit}`, t2 = `${b}${suit}`;
-    const h = hand.map((actual, idx) => ({
-      actual,
-      idx,
-      face: isRuian && isBai(actual) ? caijinTile : actual,
-      usable: !isRuian || actual !== caijinTile,
-    }));
-    const first = h.find(entry => entry.usable && entry.face === t1);
-    if (!first) continue;
-    const second = h.find(entry => entry.usable && entry.idx !== first.idx && entry.face === t2);
-    if (!second) continue;
-    opts.push([first.actual, second.actual]);
-  }
-  return opts;
 }
 
 const PORT = process.env.PORT || 3000;

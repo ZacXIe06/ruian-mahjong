@@ -1686,17 +1686,30 @@ function promptChi() {
 }
 
 function getChiOptions(hand, tile) {
-  if (!tile.endsWith('m') && !tile.endsWith('t') && !tile.endsWith('b')) return [];
-  const suit = tile.slice(-1), val = parseInt(tile);
+  const caijin = state?.caijinTile;
+  const isRuian = state?.ruleset !== 'pingyang_taipao';
+  const faceOf = (t) => (isRuian && t === 'bai' ? caijin : t);
+  const usableForMeld = (t) => !isRuian || t !== caijin;
+  if (!usableForMeld(tile)) return [];
+  const tileFace = faceOf(tile);
+  if (!tileFace || !tileFace.match(/^\d[mtb]$/)) return [];
+  const suit = tileFace.slice(-1), val = parseInt(tileFace, 10);
   const options = [];
   const seqs = [[val-2, val-1], [val-1, val+1], [val+1, val+2]];
   for (const pair of seqs) {
     if (pair.some(v => v < 1 || v > 9)) continue;
     const t1 = `${pair[0]}${suit}`, t2 = `${pair[1]}${suit}`;
-    const h = [...hand];
-    const i1 = h.indexOf(t1); if (i1 < 0) continue; h.splice(i1,1);
-    const i2 = h.indexOf(t2); if (i2 < 0) continue;
-    options.push([t1, t2]);
+    const candidates = (hand || []).map((actual, idx) => ({
+      actual,
+      idx,
+      face: faceOf(actual),
+      usable: usableForMeld(actual),
+    }));
+    const first = candidates.find(entry => entry.usable && entry.face === t1);
+    if (!first) continue;
+    const second = candidates.find(entry => entry.usable && entry.idx !== first.idx && entry.face === t2);
+    if (!second) continue;
+    options.push([first.actual, second.actual]);
   }
   return options;
 }
