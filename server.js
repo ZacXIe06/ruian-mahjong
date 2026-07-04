@@ -458,7 +458,7 @@ function beginTurnForPlayer(room, playerId, drawnTile = null, extra = {}) {
   }
   const wc = checkPlayerWin(g, playerId, drawnTile, true);
   if (wc.win) io.to(playerId).emit('can_hu_self', { tile: drawnTile });
-  io.to(playerId).emit('your_turn', { action: 'discard_or_hu', drawnTile, ...extra });
+  io.to(playerId).emit('your_turn', { action: 'discard_or_hu', drawnTile, canHu: wc.win, ...extra });
 }
 
 function handleFlowerReplace(room, playerId, requestedTiles = []) {
@@ -1195,7 +1195,8 @@ io.on('connection', (socket) => {
       if (g.playerIds[g.currentTurn] === socket.id && hasFlowersInHand(g, socket.id)) {
         socket.emit('your_turn', { action: 'flower_replace', flowers: getFlowerTiles(g, socket.id), openingFlower: !!g.pendingFlower?.opening, reconnected: true });
       } else if (g.playerIds[g.currentTurn] === socket.id && g.phase === 'playing') {
-        socket.emit('your_turn', { action: 'discard_or_hu', reconnected: true });
+        const wc = checkPlayerWin(g, socket.id, null, true);
+        socket.emit('your_turn', { action: 'discard_or_hu', reconnected: true, canHu: wc.win });
       }
     } else {
       io.to(roomId).emit('room_update', roomUpdatePayload(room, roomId));
@@ -1235,6 +1236,9 @@ io.on('connection', (socket) => {
 function computeAvailableActions(g, tile, fromPlayerId) {
   const actions = {};
   const fromIdx = g.playerIds.indexOf(fromPlayerId);
+  const isRuian = g.ruleset !== 'pingyang_taipao';
+  const discardFace = isRuian && isBai(tile) ? g.caijinTile : tile;
+  const canMeldDiscard = !isRuian || tile !== g.caijinTile;
 
   for (let i = 0; i < 4; i++) {
     const pid = g.playerIds[i];
@@ -1244,13 +1248,19 @@ function computeAvailableActions(g, tile, fromPlayerId) {
 
     if (checkPlayerWin(g, pid, tile, false).win) acts.push('hu');
 
-    const realCount = hand.filter(t => t === tile).length;
-    if (realCount >= 2) acts.push('peng');
-    if (realCount >= 3) acts.push('gang');
+    if (canMeldDiscard) {
+      const realCount = hand.filter(t => {
+        if (isRuian && t === g.caijinTile) return false;
+        const handFace = isRuian && isBai(t) ? g.caijinTile : t;
+        return handFace === discardFace;
+      }).length;
+      if (realCount >= 2) acts.push('peng');
+      if (realCount >= 3) acts.push('gang');
+    }
 
     const nextIdx = (fromIdx + 1) % 4;
     if (i === nextIdx) {
-      const opts = getChiOptions(hand, tile, g.caijinTile);
+      const opts = getChiOptions(hand, tile, g.caijinTile, g.ruleset);
       if (opts.length) { acts.push('chi'); actions[pid + '_chi'] = opts; }
     }
 
@@ -1259,17 +1269,27 @@ function computeAvailableActions(g, tile, fromPlayerId) {
   return actions;
 }
 
-function getChiOptions(hand, tile, caijinTile) {
-  if (!tile.match(/^\d[mtb]$/)) return [];
-  const suit = tile.slice(-1), val = parseInt(tile);
+function getChiOptions(hand, tile, caijinTile, ruleset = 'ruian') {
+  const isRuian = ruleset !== 'pingyang_taipao';
+  if (isRuian && tile === caijinTile) return [];
+  const tileFace = isRuian && isBai(tile) ? caijinTile : tile;
+  if (!tileFace || !tileFace.match(/^\d[mtb]$/)) return [];
+  const suit = tileFace.slice(-1), val = parseInt(tileFace, 10);
   const opts = [];
   for (const [a, b] of [[val-2,val-1],[val-1,val+1],[val+1,val+2]]) {
     if (a < 1 || b > 9) continue;
     const t1 = `${a}${suit}`, t2 = `${b}${suit}`;
-    const h = [...hand];
-    const i1 = h.indexOf(t1); if (i1 < 0) continue; h.splice(i1,1);
-    const i2 = h.indexOf(t2); if (i2 < 0) continue;
-    opts.push([t1, t2]);
+    const h = hand.map((actual, idx) => ({
+      actual,
+      idx,
+      face: isRuian && isBai(actual) ? caijinTile : actual,
+      usable: !isRuian || actual !== caijinTile,
+    }));
+    const first = h.find(entry => entry.usable && entry.face === t1);
+    if (!first) continue;
+    const second = h.find(entry => entry.usable && entry.idx !== first.idx && entry.face === t2);
+    if (!second) continue;
+    opts.push([first.actual, second.actual]);
   }
   return opts;
 }

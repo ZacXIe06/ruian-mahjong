@@ -732,11 +732,11 @@ function runDealAnimation(gs) {
   dealNext();
 }
 
-socket.on('your_turn', ({ action, drawnTile: dt, afterGang, canTianhu, flowers, openingFlower }) => {
+socket.on('your_turn', ({ action, drawnTile: dt, afterGang, canTianhu, canHu, flowers, openingFlower }) => {
   myTurn = true;
   actionAllowed = action;
   drawnTile = dt || null;
-  canHuSelfNow = !!canTianhu;
+  canHuSelfNow = !!canHu;
   flowerPromptTiles = flowers || [];
   openingFlowerPhase = !!openingFlower;
   discardInFlight = false;
@@ -1568,10 +1568,17 @@ function addGangButtons(bar) {
   const hand = state.seats[myId]?.hand || [];
   const melds = state.seats[myId]?.openMelds || [];
   const caijin = state.caijinTile;
+  const isRuian = state.ruleset !== 'pingyang_taipao';
+  const faceOf = (tile) => (isRuian && tile === 'bai' ? caijin : tile);
+  const usableForMeld = (tile) => !isRuian || tile !== caijin;
 
   // Concealed gang: 4 of same tile in hand
   const counts = {};
-  for (const t of hand) counts[t] = (counts[t] || 0) + 1;
+  for (const t of hand) {
+    if (!usableForMeld(t)) continue;
+    const face = faceOf(t);
+    counts[face] = (counts[face] || 0) + 1;
+  }
   for (const [t, c] of Object.entries(counts)) {
     if (c >= 4) {
       bar.appendChild(btn(`暗杠${tileLabel(t)}`, 'gang', () => doConcealedGang(t)));
@@ -1580,8 +1587,10 @@ function addGangButtons(bar) {
 
   // Open gang (补杠): peng meld + same tile in hand
   for (const m of melds) {
-    if (m.type === 'peng' && hand.includes(m.tiles[0])) {
-      bar.appendChild(btn(`补杠${tileLabel(m.tiles[0])}`, 'gang', () => doOpenGang(m.tiles[0])));
+    if (m.type !== 'peng') continue;
+    const meldFace = faceOf(m.tiles[0]);
+    if (hand.some(t => usableForMeld(t) && faceOf(t) === meldFace)) {
+      bar.appendChild(btn(`补杠${tileLabel(meldFace)}`, 'gang', () => doOpenGang(meldFace)));
     }
   }
 }

@@ -233,7 +233,10 @@ function checkWin(concealed, openMelds, caijinTile, options = {}) {
       : Object.values(counts).some(count => count >= 3));
     if (canKillPig) return { win: true, special: 'killPig', wildcards, baiCount };
   }
-  const special500 = checkSpecial500(concealed, openMelds, caijinTile, wildcards, baiCount, options);
+  // 500胡/清一色/四风齐 shortcuts are Ruian-only; Pingyang uses structure + tai scoring.
+  const special500 = isRuianRuleset(options)
+    ? checkSpecial500(concealed, openMelds, caijinTile, wildcards, baiCount, options)
+    : null;
   if (special500) return { win: true, special: special500, wildcards, baiCount };
   if (totalMelds === 0 && canFormEightPairs(concealed, caijinTile, options)) {
     return { win: true, special: 'eightPairs', wildcards, baiCount };

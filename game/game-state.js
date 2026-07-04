@@ -79,6 +79,34 @@ function isPingyang(game) {
   return game.ruleset === 'pingyang_taipao';
 }
 
+function ruianMeldFace(game, tile) {
+  if (!tile) return tile;
+  if (isPingyang(game)) return tile;
+  if (isBai(tile)) return game.caijinTile;
+  return tile;
+}
+
+function canUseForRuianMeld(game, tile) {
+  if (!tile) return false;
+  if (isPingyang(game)) return true;
+  return tile !== game.caijinTile;
+}
+
+function canMeldMatch(game, candidate, target) {
+  if (!canUseForRuianMeld(game, candidate) || !canUseForRuianMeld(game, target)) return false;
+  return ruianMeldFace(game, candidate) === ruianMeldFace(game, target);
+}
+
+function isValidChiMeld(game, tile, handTiles) {
+  if (!Array.isArray(handTiles) || handTiles.length !== 2) return false;
+  const faces = [tile, ...handTiles].map(t => ruianMeldFace(game, t));
+  if (!faces.every(t => /^\d[mtb]$/.test(t))) return false;
+  const suit = faces[0].slice(-1);
+  if (!faces.every(t => t.slice(-1) === suit)) return false;
+  const values = faces.map(t => parseInt(t, 10)).sort((a, b) => a - b);
+  return values[0] + 1 === values[1] && values[1] + 1 === values[2];
+}
+
 function initSeats(game) {
   for (let i = 0; i < 4; i++) {
     const pid = game.playerIds[i];
@@ -283,11 +311,12 @@ function updateGenfeng(game, playerId, tile) {
 function doPeng(game, playerId, tile) {
   const discard = game.lastDiscard;
   if (!discard || discard.tile !== tile) return false;
+  if (!canUseForRuianMeld(game, tile)) return false;
   const hand = game.seats[playerId].hand;
   let count = 0;
   const indices = [];
   for (let i = 0; i < hand.length; i++) {
-    if (hand[i] === tile || (isBai(hand[i]) && tile === game.caijinTile)) {
+    if (canMeldMatch(game, hand[i], tile)) {
       indices.push(i);
       count += 1;
       if (count === 2) break;
@@ -309,13 +338,16 @@ function doPeng(game, playerId, tile) {
 function doChi(game, playerId, tile, handTiles) {
   const discard = game.lastDiscard;
   if (!discard || discard.tile !== tile) return false;
+  if (!canUseForRuianMeld(game, tile)) return false;
+  if (!isValidChiMeld(game, tile, handTiles)) return false;
   const hand = game.seats[playerId].hand;
   for (const t of handTiles) {
+    if (!canUseForRuianMeld(game, t)) return false;
     const idx = hand.indexOf(t);
     if (idx === -1) return false;
     hand.splice(idx, 1);
   }
-  const meldTiles = [...handTiles, tile].sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+  const meldTiles = [...handTiles, tile].sort((a, b) => parseInt(ruianMeldFace(game, a), 10) - parseInt(ruianMeldFace(game, b), 10));
   game.seats[playerId].openMelds.push({ type: 'chi', tiles: meldTiles, from: discard.playerId });
 
   const discardIdx = game.discardPile.findLastIndex(d => d.tile === tile && d.playerId === discard.playerId);
@@ -328,9 +360,10 @@ function doChi(game, playerId, tile, handTiles) {
 
 function doOpenGang(game, playerId, tile) {
   const seat = game.seats[playerId];
-  const pengIdx = seat.openMelds.findIndex(m => m.type === 'peng' && m.tiles[0] === tile);
+  if (!canUseForRuianMeld(game, tile)) return false;
+  const pengIdx = seat.openMelds.findIndex(m => m.type === 'peng' && ruianMeldFace(game, m.tiles[0]) === ruianMeldFace(game, tile));
   if (pengIdx === -1) return false;
-  const handIdx = seat.hand.indexOf(tile);
+  const handIdx = seat.hand.findIndex(t => canMeldMatch(game, t, tile));
   if (handIdx === -1) return false;
   seat.hand.splice(handIdx, 1);
   seat.openMelds[pengIdx].type = 'gang';
@@ -339,11 +372,12 @@ function doOpenGang(game, playerId, tile) {
 }
 
 function doConcealedGang(game, playerId, tile) {
+  if (!canUseForRuianMeld(game, tile)) return false;
   const hand = game.seats[playerId].hand;
-  const count = hand.filter(t => t === tile).length;
+  const count = hand.filter(t => canMeldMatch(game, t, tile)).length;
   if (count < 4) return false;
   for (let i = 0; i < 4; i++) {
-    const idx = hand.indexOf(tile);
+    const idx = hand.findIndex(t => canMeldMatch(game, t, tile));
     hand.splice(idx, 1);
   }
   game.seats[playerId].openMelds.push({ type: 'concealed_gang', tiles: [tile, tile, tile, tile] });

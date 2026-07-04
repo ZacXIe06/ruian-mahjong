@@ -3,7 +3,7 @@ const assert = require('assert');
 const { checkWin } = require('../game/win-check');
 const { calcWinScore } = require('../game/scorer');
 const { buildDeck, FLOWERS, determineCaijinTiles } = require('../game/tiles');
-const { createGame, replaceFlowerTiles, getFlowerTiles, getPlayableHand } = require('../game/game-state');
+const { createGame, replaceFlowerTiles, getFlowerTiles, getPlayableHand, doPeng, doChi } = require('../game/game-state');
 
 function win(hand, caijin = '4m', melds = []) {
   return checkWin(hand, melds, caijin);
@@ -427,3 +427,93 @@ test('pingyang playable hand ignores flower area tiles for hu structure', () => 
   };
   assert.deepStrictEqual(getPlayableHand(game, 'a'), ['2m','3m','4m','2t','3t','4t','5t','5t','5t','7b','8b','9b','east','east']);
 });
+
+test('ruian standard self-draw hand wins (678 tong + bai triplet)', () => {
+  const hand = [
+    '2m','3m','4m','5m','6m','7m',
+    '6t','7t','8t',
+    '3b','3b','4b','5b','6b',
+    'bai','bai','bai',
+  ];
+  const result = checkWin(hand, [], '9m', { ruleset: 'ruian' });
+  assert.strictEqual(result.win, true);
+  assert.strictEqual(result.special, null);
+});
+
+test('ruian and pingyang treat bai differently during win check', () => {
+  const hand = [
+    'bai','bai','bai',
+    '2m','3m','4m','5m','6m','7m',
+    '6t','7t','8t',
+    '3b','3b','4b','5b','6b',
+  ];
+  const ruian = checkWin(hand, [], '1m', { ruleset: 'ruian' });
+  assert.strictEqual(ruian.win, true);
+  const pingyang = checkWin(hand, [], '1m', {
+    ruleset: 'pingyang_taipao',
+    caijinTiles: ['1m', '2m'],
+  });
+  assert.strictEqual(pingyang.win, true);
+  assert.strictEqual(pingyang.baiCount, 0);
+});
+
+test('pingyang does not inherit ruian special500 shortcuts like loose qingyise', () => {
+  const allWanNoStructure = [
+    '1m','1m','3m','3m','5m','5m','7m','7m','9m','9m',
+    '2m','4m','6m','8m','1m','3m','5m',
+  ];
+  const pingyang = checkWin(allWanNoStructure, [], '9t', {
+    ruleset: 'pingyang_taipao',
+    caijinTiles: ['9t', '1t'],
+  });
+  assert.strictEqual(pingyang.win, false);
+
+  const ruian = checkWin(allWanNoStructure, [], '9t', { ruleset: 'ruian' });
+  assert.strictEqual(ruian.win, true);
+  assert.strictEqual(ruian.special, 'qingyise');
+});
+
+test('ruian caijin tile cannot be used for peng melds', () => {
+  const game = createGame('room1', ['a', 'b', 'c', 'd']);
+  game.ruleset = 'ruian';
+  game.caijinTile = '4m';
+  game.seats.a = { hand: [], flowers: [], openMelds: [], discards: [], baiCollected: [], score: 100 };
+  game.seats.b = { hand: ['4m', '4m', '7m'], flowers: [], openMelds: [], discards: [], baiCollected: [], score: 100 };
+  game.discardPile = [{ tile: '4m', playerId: 'a' }];
+  game.lastDiscard = { tile: '4m', playerId: 'a' };
+  assert.strictEqual(doPeng(game, 'b', '4m'), false);
+});
+
+test('ruian bai can participate in chi as caijin face tile', () => {
+  const game = createGame('room1', ['a', 'b', 'c', 'd']);
+  game.ruleset = 'ruian';
+  game.caijinTile = '4m';
+  game.seats.a = { hand: [], flowers: [], openMelds: [], discards: ['3m'], baiCollected: [], score: 100 };
+  game.seats.b = { hand: ['2m', 'bai', '7m'], flowers: [], openMelds: [], discards: [], baiCollected: [], score: 100 };
+  game.discardPile = [{ tile: '3m', playerId: 'a' }];
+  game.lastDiscard = { tile: '3m', playerId: 'a' };
+  assert.strictEqual(doChi(game, 'b', '3m', ['2m', 'bai']), true);
+  assert.deepStrictEqual(game.seats.b.openMelds[0].tiles, ['2m', '3m', 'bai']);
+});
+
+test('ruian bai can eat as caijin face but actual caijin cannot', () => {
+  const baiGame = createGame('room1', ['a', 'b', 'c', 'd']);
+  baiGame.ruleset = 'ruian';
+  baiGame.caijinTile = '6m';
+  baiGame.seats.a = { hand: [], flowers: [], openMelds: [], discards: ['4m'], baiCollected: [], score: 100 };
+  baiGame.seats.b = { hand: ['5m', 'bai'], flowers: [], openMelds: [], discards: [], baiCollected: [], score: 100 };
+  baiGame.discardPile = [{ tile: '4m', playerId: 'a' }];
+  baiGame.lastDiscard = { tile: '4m', playerId: 'a' };
+  assert.strictEqual(doChi(baiGame, 'b', '4m', ['5m', 'bai']), true);
+
+  const caijinGame = createGame('room2', ['a', 'b', 'c', 'd']);
+  caijinGame.ruleset = 'ruian';
+  caijinGame.caijinTile = '6m';
+  caijinGame.seats.a = { hand: [], flowers: [], openMelds: [], discards: ['4m'], baiCollected: [], score: 100 };
+  caijinGame.seats.b = { hand: ['5m', '6m'], flowers: [], openMelds: [], discards: [], baiCollected: [], score: 100 };
+  caijinGame.discardPile = [{ tile: '4m', playerId: 'a' }];
+  caijinGame.lastDiscard = { tile: '4m', playerId: 'a' };
+  assert.strictEqual(doChi(caijinGame, 'b', '4m', ['5m', '6m']), false);
+});
+
+console.log('rules tests complete');
