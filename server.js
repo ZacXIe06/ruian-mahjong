@@ -295,7 +295,7 @@ function broadcastGameState(roomId) {
           ? allKnownTiles.filter(t => (g.caijinTiles?.length ? g.caijinTiles : [g.caijinTile]).includes(t)).length
           : null,
         taiCount: g.phase === 'ended'
-          ? (previewScore?.totalTai ?? null)
+          ? (g.scores?.scoreResult?.killPig && id !== g.winner ? 0 : (previewScore?.totalTai ?? null))
           : (id === pid && (g.ruleset || room.ruleset) === 'pingyang_taipao' ? (previewScore?.totalTai ?? 0) : null),
         score: seat.score,
         isBot: isBot(id),
