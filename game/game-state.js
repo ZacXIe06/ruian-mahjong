@@ -198,6 +198,13 @@ function drawTileAfterGang(game, playerId) {
   return tile;
 }
 
+function drawHaidiTile(game, playerId) {
+  const tile = drawRawTileForSeat(game, playerId, false);
+  game.lastDrawWasGang = false;
+  game.isLastTile = true;
+  return tile;
+}
+
 function getPlayableHand(game, playerId) {
   const seat = game.seats[playerId];
   if (!seat) return [];
@@ -366,12 +373,27 @@ function doConcealedGang(game, playerId, tile) {
 function checkPlayerWin(game, playerId, winTile, isSelfDraw) {
   const seat = game.seats[playerId];
   const hand = isSelfDraw ? getPlayableHand(game, playerId) : [...getPlayableHand(game, playerId), winTile];
-  return checkWin(hand, seat.openMelds, game.caijinTile, {
+  const options = {
     ruleset: game.ruleset,
     caijinTiles: game.caijinTiles,
     flowers: seat.flowers || [],
     baiCount: seat.baiCollected?.length || 0,
+  };
+  const result = checkWin(hand, seat.openMelds, game.caijinTile, options);
+  if (!result.win || game.ruleset !== 'pingyang_taipao') return result;
+
+  const score = calcWinScore(hand, seat.openMelds, game.caijinTile, {
+    ...options,
+    isSelfDraw,
+    isStandardWin: true,
+    flowers: seat.flowers || [],
+    baiCount: seat.baiCollected?.length || 0,
+    seatWind: seat.wind,
+    isLastTile: game.isLastTile,
+    isGangWin: game.lastDrawWasGang && isSelfDraw,
+    winTile: winTile || hand[hand.length - 1] || null,
   });
+  return { ...result, score, win: !!score.qifan };
 }
 
 function countCaijin(game, playerId) {
@@ -393,8 +415,9 @@ function resolveWin(game, winnerId, loserId, isSelfDraw, winTile, winInfo) {
   const concealed = getPlayableHand(game, winnerId);
   const openMelds = game.seats[winnerId].openMelds;
   const actualWinTile = winTile || concealed[concealed.length - 1] || null;
+  const scoringConcealed = isSelfDraw || !actualWinTile ? concealed : [...concealed, actualWinTile];
 
-  const scoreResult = calcWinScore(concealed, openMelds, game.caijinTile, {
+  const scoreResult = calcWinScore(scoringConcealed, openMelds, game.caijinTile, {
     isSelfDraw,
     isTianHu: winInfo.isTianHu || false,
     isDiHu: winInfo.isDiHu || false,
@@ -410,6 +433,21 @@ function resolveWin(game, winnerId, loserId, isSelfDraw, winTile, winInfo) {
     isLastTile: game.isLastTile,
     winTile: actualWinTile,
   });
+
+  if (game.ruleset === 'pingyang_taipao') {
+    game.winner = winnerId;
+    game.scores = {
+      transfers: {},
+      scoreResult,
+      type: scoreResult.type,
+      total: scoreResult.totalTai ?? scoreResult.total ?? 0,
+      payDetails: [],
+      caijinSideTransfers: [],
+    };
+    game.phase = 'ended';
+    game.pendingDealerWinner = winnerId;
+    return scoreResult;
+  }
 
   const transfers = {};
   const { type, mult, caijinFen } = scoreResult;
@@ -485,6 +523,7 @@ module.exports = {
   initRound,
   drawTile,
   drawTileAfterGang,
+  drawHaidiTile,
   discardTile,
   doPeng,
   doChi,

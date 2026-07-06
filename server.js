@@ -8,6 +8,7 @@ const https = require('https');
 
 const {
   createGame, initRound, drawTile, drawTileAfterGang,
+  drawHaidiTile,
   discardTile, doPeng, doChi, doOpenGang, doConcealedGang,
   checkPlayerWin, resolveWin, resolveGangPayment, nextTurn, currentPlayer,
   getFlowerTiles, hasFlowersInHand, replaceFlowerTiles, getPlayableHand,
@@ -278,6 +279,7 @@ function broadcastGameState(roomId) {
         seatWind: seat.wind,
         isLastTile: g.isLastTile,
         winTile: playableHand[playableHand.length - 1] || null,
+        faceOnly: (g.ruleset || room.ruleset) === 'pingyang_taipao',
       });
       seats[id] = {
         wind: seat.wind,
@@ -626,10 +628,57 @@ function handleDiscard(room, fromPid, tile) {
 function advanceTurn(room) {
   const g = room.game;
   if (g.waitingForAction) return;
+  if (maybeResolvePingyangHaidi(room)) return;
   const nextPid = nextTurn(g);
   const drawn = drawTile(g, nextPid);
   g.pendingAutoDraw = drawn ? { playerId: nextPid, tile: drawn, wallIdx: g.wallIdx, discardSeq: g.discardPile.length, createdAt: Date.now() } : null;
   beginTurnForPlayer(room, nextPid, drawn);
+}
+
+function maybeResolvePingyangHaidi(room) {
+  const g = room?.game;
+  if (!g || g.ruleset !== 'pingyang_taipao' || g.phase !== 'playing') return false;
+  if (g.wallLeft > 20) return false;
+
+  g.phase = 'haidi';
+  const startIdx = (g.currentTurn + 1) % 4;
+  const order = [0, 1, 2, 3].map(i => g.playerIds[(startIdx + i) % 4]);
+  const draws = [];
+  const winners = [];
+
+  for (const pid of order) {
+    const tile = drawHaidiTile(g, pid);
+    if (!tile) break;
+    draws.push({ playerId: pid, tile });
+    const wc = checkPlayerWin(g, pid, tile, true);
+    if (wc.win) winners.push({ playerId: pid, tile, winInfo: wc });
+  }
+
+  logRoom(room, `海底摸牌：${draws.map(item => `${playerLabel(room, item.playerId)} ${tileName(item.tile)}`).join('，')}`);
+
+  if (winners.length) {
+    const winner = winners[0];
+    resolveWin(g, winner.playerId, null, true, winner.tile, { isLastTile: true });
+    room.nextRoundReady = new Set();
+    snapshotSettlementBase(room);
+    broadcastGameState(g.roomId);
+    io.to(g.roomId).emit('round_end', { winner: winner.playerId, scores: g.scores, haidi: true, haidiDraws: draws });
+    return true;
+  }
+
+  g.phase = 'liuju';
+  g.scores = {
+    type: '流局',
+    ruleset: 'pingyang_taipao',
+    totalTai: 0,
+    taiDetails: [],
+    haidiDraws: draws,
+  };
+  room.nextRoundReady = new Set();
+  snapshotSettlementBase(room);
+  broadcastGameState(g.roomId);
+  io.to(g.roomId).emit('liuju', { haidiDraws: draws });
+  return true;
 }
 
 function resolveAndContinue(room, actionId = null) {

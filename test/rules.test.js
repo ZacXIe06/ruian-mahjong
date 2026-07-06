@@ -3,7 +3,7 @@ const assert = require('assert');
 const { checkWin } = require('../game/win-check');
 const { calcWinScore } = require('../game/scorer');
 const { buildDeck, FLOWERS, determineCaijinTiles } = require('../game/tiles');
-const { createGame, replaceFlowerTiles, getFlowerTiles, getPlayableHand, doPeng, doChi } = require('../game/game-state');
+const { createGame, replaceFlowerTiles, getFlowerTiles, getPlayableHand, doPeng, doChi, checkPlayerWin } = require('../game/game-state');
 const { getChiOptions } = require('../game/rule-logic');
 
 function win(hand, caijin = '4m', melds = []) {
@@ -197,6 +197,89 @@ test('pingyang detects single wait detail', () => {
     winTile: 'zhong',
   });
   assert.ok(score.taiDetails.some(item => item.label === '单钓将'));
+});
+
+test('pingyang gang tai follows small and high tile table', () => {
+  const hand = [
+    '1m','1m',
+    '2m','3m','4m',
+    '2t','3t','4t',
+    '5b','6b','7b',
+    'east','east','east',
+    'zhong','zhong','zhong',
+  ];
+  const score = calcWinScore(hand, [
+    { type: 'gang', tiles: ['2m', '2m', '2m', '2m'] },
+    { type: 'concealed_gang', tiles: ['zhong', 'zhong', 'zhong', 'zhong'] },
+  ], '9m', {
+    ruleset: 'pingyang_taipao',
+    caijinTiles: ['9m', '1t'],
+    isSelfDraw: true,
+    flowers: [],
+    seatWind: 'east',
+  });
+  assert.ok(score.taiDetails.some(item => item.label === '明杠 2m' && item.tai === 2));
+  assert.ok(score.taiDetails.some(item => item.label === '暗杠 zhong' && item.tai === 4));
+});
+
+test('pingyang win prompt requires 13 tai qifan', () => {
+  const game = createGame('room1', ['a', 'b', 'c', 'd']);
+  game.ruleset = 'pingyang_taipao';
+  game.caijinTile = '9m';
+  game.caijinTiles = ['9m', '1t'];
+  game.seats.a = {
+    wind: 'east',
+    hand: [
+      '1m','1m',
+      '2m','3m','4m',
+      '2t','3t','4t',
+      '5b','6b','9m',
+      'east','east','east',
+      'zhong','zhong','zhong',
+    ],
+    flowers: [],
+    openMelds: [],
+    discards: [],
+    baiCollected: [],
+    score: 100,
+  };
+  const result = checkPlayerWin(game, 'a', null, true);
+  assert.strictEqual(result.score.qifan, false);
+  assert.strictEqual(result.win, false);
+
+  game.seats.a.flowers = ['chun', 'xia', 'qiu', 'dong'];
+  const qifan = checkPlayerWin(game, 'a', null, true);
+  assert.strictEqual(qifan.score.qifan, true);
+  assert.strictEqual(qifan.win, true);
+});
+
+test('pingyang face tai preview excludes win-only tai', () => {
+  const hand = [
+    '1m','1m',
+    '2m','3m','4m',
+    '2t','3t','4t',
+    '5b','6b','9m',
+    'east','east','east',
+    'zhong','zhong','zhong',
+  ];
+  const preview = calcWinScore(hand, [], '9m', {
+    ruleset: 'pingyang_taipao',
+    caijinTiles: ['9m', '1t'],
+    flowers: [],
+    seatWind: 'east',
+    faceOnly: true,
+  });
+  assert.strictEqual(preview.totalTai, 4);
+  assert.ok(!preview.taiDetails.some(item => item.label === '自摸'));
+
+  const winScore = calcWinScore(hand, [], '9m', {
+    ruleset: 'pingyang_taipao',
+    caijinTiles: ['9m', '1t'],
+    flowers: [],
+    seatWind: 'east',
+    isSelfDraw: true,
+  });
+  assert.ok(winScore.totalTai > preview.totalTai);
 });
 
 test('standard 17-tile hand wins', () => {

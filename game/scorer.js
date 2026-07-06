@@ -214,7 +214,7 @@ function flowerGroupTai(count) {
 }
 
 function isSeatWindOrDragon(tile, seatWind) {
-  return tile === seatWind || tile === 'zhong' || tile === 'fa';
+  return tile === seatWind || tile === 'zhong' || tile === 'fa' || tile === 'bai';
 }
 
 function getAllTiles(concealed, openMelds) {
@@ -245,9 +245,7 @@ function detectSingleWait(concealed, openMelds, caijinTile, ctx = {}) {
   if (tileCount < 2) return false;
 
   const stripped = [...winningConcealed];
-  const first = stripped.indexOf(winTile);
-  if (first === -1) return false;
-  stripped.splice(first, 1);
+  stripped.splice(stripped.indexOf(winTile), 1);
   const second = stripped.indexOf(winTile);
   if (second === -1) return false;
   stripped.splice(second, 1);
@@ -274,9 +272,9 @@ function detectPingyangPatterns(concealed, openMelds, caijinTile, ctx = {}) {
   const caishenHui = detectCaishenHui(concealed, openMelds, caijinTile, ctx);
   const singleWait = detectSingleWait(concealed, openMelds, caijinTile, ctx);
   const fourWinds = ['east', 'south', 'west', 'north'].every(tile => countTile(allTiles, tile) > 0);
-  const menqing = wildcardCount === 0 && (ctx.flowers?.length || 0) === 0 && openMelds.length === 0;
+  const menqing = wildcardCount === 0 && (ctx.flowers?.length || 0) === 0 && (ctx.baiCount || 0) === 0 && openMelds.length === 0;
   const hardPai = wildcardCount === 0;
-  const flowerHu = (ctx.flowers?.length || 0) === 8;
+  const flowerHu = (ctx.flowers?.length || 0) + (ctx.baiCount || 0) >= 8;
   const sameCaijinReveal = isPingyang(ctx) && Array.isArray(ctx.caijinTiles) && ctx.caijinTiles.length === 1;
   const caijinCounts = {};
   for (const tile of caijinTiles) caijinCounts[tile] = countTile(allTiles, tile);
@@ -328,8 +326,8 @@ function calcPingyangCaijinTai(allTiles, ctx = {}) {
     const count = countTile(allTiles, tile);
     if (!count) continue;
     if (sameReveal) {
-      if (count >= 2) pushTai(details, '双翻同财神2张', 13, { qifan: true });
-      else pushTai(details, '双翻同财神1张', 7);
+      if (count >= 2) pushTai(details, '同财神2张', 13, { qifan: true });
+      else pushTai(details, '同财神1张', 7);
       continue;
     }
     const honorLike = isHonor(tile) || isBai(tile) || isFlower(tile);
@@ -347,39 +345,34 @@ function calcPingyangGangTai(openMelds, seatWind) {
     const tile = meld.tiles[0];
     const high = isSeatWindOrDragon(tile, seatWind);
     const tai = meld.type === 'concealed_gang'
-      ? (high ? 5 : 4)
-      : (high ? 4 : 3);
+      ? (high ? 4 : 3)
+      : (high ? 3 : 2);
     pushTai(details, `${meld.type === 'concealed_gang' ? '暗杠' : '明杠'} ${tile}`, tai);
   }
   return details;
 }
 
-function calcPingyangHonorTripletTai(allTiles, openMelds, seatWind) {
+function calcPingyangHonorTripletTai(allTiles, openMelds, seatWind, caijinTile, ctx = {}) {
   const details = [];
-  const tracked = [seatWind, 'zhong', 'fa'];
+  const tracked = [...new Set([seatWind, 'zhong', 'fa', 'bai'].filter(Boolean))];
+  const wildcardCount = allTiles.filter(t => isWildcardTile(t, caijinTile, ctx)).length;
   for (const tile of tracked) {
     const meldHit = openMelds.some(m => ['peng', 'gang', 'concealed_gang'].includes(m.type) && m.tiles[0] === tile);
     const count = countTile(allTiles, tile);
-    if (meldHit || count >= 3) pushTai(details, `${tile}刻/碰`, 1);
+    if (meldHit || count >= 3 || (count >= 2 && wildcardCount > 0)) pushTai(details, `${tile}刻/碰`, 1);
   }
   return details;
 }
 
 function calcPingyangWinTai(concealed, openMelds, caijinTile, ctx = {}) {
   const allTiles = getAllTiles(concealed, openMelds);
-  const details = [];
+  const details = calcPingyangFaceTai(concealed, openMelds, caijinTile, ctx);
   const patterns = detectPingyangPatterns(concealed, openMelds, caijinTile, ctx);
 
   if (patterns.flowerHu) {
     pushTai(details, '花胡', 52, { qifan: true });
-    return { type: '花胡', totalTai: 52, details, qifan: true, double: true };
+    return { type: '花胡', totalTai: 52, taiDetails: details, qifan: true, double: true, multiplier: 2 };
   }
-
-  details.push(...calcPingyangGangTai(openMelds, ctx.seatWind));
-  details.push(...calcPingyangHonorTripletTai(allTiles, openMelds, ctx.seatWind));
-  details.push(...calcPingyangCaijinTai(allTiles, ctx));
-  details.push(...calcFlowerTai(ctx.flowers || []));
-  details.push(...calcBaiTai(allTiles, ctx));
 
   if (ctx.isSelfDraw) pushTai(details, '自摸', 1);
   if (ctx.isGangWin) pushTai(details, '杠上开花', 2);
@@ -409,8 +402,7 @@ function calcPingyangWinTai(concealed, openMelds, caijinTile, ctx = {}) {
   const double = totalTai >= PINGYANG_DOUBLE_THRESHOLD;
 
   let primary = '平胡';
-  if (patterns.flowerHu) primary = '花胡';
-  else if (patterns.killPig) primary = '杀猪胡';
+  if (patterns.killPig) primary = '杀猪胡';
   else if (patterns.caishenHui) primary = '财神汇';
   else if (patterns.singleWait) primary = '单钓将';
   else if (patterns.qing === 'qingyise') primary = '清一色';
@@ -434,8 +426,38 @@ function calcPingyangWinTai(concealed, openMelds, caijinTile, ctx = {}) {
   };
 }
 
+function calcPingyangFaceTai(concealed, openMelds, caijinTile, ctx = {}) {
+  const allTiles = getAllTiles(concealed, openMelds);
+  const details = [];
+  details.push(...calcPingyangGangTai(openMelds, ctx.seatWind));
+  details.push(...calcPingyangHonorTripletTai(allTiles, openMelds, ctx.seatWind, caijinTile, ctx));
+  details.push(...calcPingyangCaijinTai(allTiles, ctx));
+  details.push(...calcFlowerTai(ctx.flowers || []));
+  details.push(...calcBaiTai(allTiles, ctx));
+  return details;
+}
+
 function calcWinScore(concealed, openMelds, caijinTile, ctx = {}) {
   if (isPingyang(ctx)) {
+    if (ctx.faceOnly) {
+      const details = calcPingyangFaceTai(concealed, openMelds, caijinTile, ctx);
+      const totalTai = details.reduce((sum, item) => sum + item.tai, 0);
+      return {
+        type: '牌面台数',
+        mult: 1,
+        totalTai,
+        taiDetails: details,
+        qifan: totalTai >= PINGYANG_QIFAN || details.some(item => item.qifan),
+        double: totalTai >= PINGYANG_DOUBLE_THRESHOLD,
+        qifanTai: PINGYANG_QIFAN,
+        doubleThreshold: PINGYANG_DOUBLE_THRESHOLD,
+        caijinFen: 0,
+        dealerRate: 0,
+        nondealerRate: 0,
+        total: totalTai,
+        ruleset: 'pingyang_taipao',
+      };
+    }
     const pingyang = calcPingyangWinTai(concealed, openMelds, caijinTile, ctx);
     return {
       type: pingyang.type,
@@ -478,4 +500,5 @@ module.exports = {
   detect8Dui,
   detectCaijinGui,
   calcPingyangWinTai,
+  calcPingyangFaceTai,
 };

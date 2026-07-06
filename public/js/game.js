@@ -1959,6 +1959,7 @@ showPingyangSettlement = function showPingyangSettlementPatched(winnerName, scor
 
 // Stable overrides for flower/bai replacement interaction.
 getMyFlowerTiles = function getMyFlowerTilesPatched() {
+  if ((state?.ruleset || '') !== 'pingyang_taipao') return [];
   return (state?.seats?.[myId]?.hand || []).filter(tile => FLOWER_CN[tile] || tile === 'bai');
 };
 
