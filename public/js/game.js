@@ -1938,7 +1938,7 @@ showPingyangSettlement = function showPingyangSettlementPatched(winnerName, scor
     ${settlementSelfCorner(state)}
     <h2>${winnerName} \u80e1\u724c\uff01</h2>
     <p class="score-line winner" style="font-size:1.1em">${sr.type || '\u5e73\u9633\u53f0\u70ae'}</p>
-    <p class="score-line" style="color:#888">\u603b\u53f0\u6570 ${sr.totalTai || 0} \u53f0${sr.qifan ? `\uff0c\u5df2\u8fbe ${sr.qifanTai || 13} \u53f0\u8d77\u7ffb` : `\uff0c\u672a\u8fbe ${sr.qifanTai || 13} \u53f0\u8d77\u7ffb`}${sr.double ? '\uff0c30\u53f0\u53cc\u7ffb' : ''}</p>
+    <p class="score-line" style="color:#888">\u603b\u53f0\u6570 ${sr.totalTai || 0} \u53f0${sr.double ? '\uff0c30\u53f0\u53cc\u7ffb' : sr.qifan ? `\uff0c${sr.qifanTai || 13}\u53f0\u4e00\u7ffb` : `\uff0c\u672a\u5230${sr.qifanTai || 13}\u53f0\u4e0d\u7ffb`}${sr.killPig ? '\uff0c\u6740\u732a' : ''}</p>
     <div class="manual-settlement settlement-detail-grid">${detailRows || '<div class="score-line">\u6682\u65e0\u53f0\u6570\u660e\u7ec6</div>'}</div>
     <div class="manual-settlement">`;
   for (const pid of others) {

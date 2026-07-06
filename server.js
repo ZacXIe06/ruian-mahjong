@@ -366,7 +366,10 @@ function formatCaijinLog(caijinTiles) {
 function startFlowerStage(room, queue, opening = false) {
   const g = room?.game;
   if (!g || !queue?.length) return false;
-  const normalizedQueue = queue.filter(pid => hasFlowersInHand(g, pid));
+  const normalizedQueue = [...new Set(queue)].filter(pid => g.playerIds.includes(pid));
+  if (!normalizedQueue.length) return false;
+  if (!normalizedQueue.some(pid => hasFlowersInHand(g, pid))) return false;
+  while (normalizedQueue.length && !hasFlowersInHand(g, normalizedQueue[0])) normalizedQueue.shift();
   if (!normalizedQueue.length) return false;
   g.phase = 'flowering';
   g.pendingFlower = { queue: normalizedQueue, currentPlayer: normalizedQueue[0], opening };
@@ -377,7 +380,7 @@ function startFlowerStage(room, queue, opening = false) {
 function maybeStartOpeningFlowerStage(room) {
   const g = room?.game;
   if (!g || g.ruleset !== 'pingyang_taipao') return false;
-  const ordered = [0, 1, 2, 3].map(i => g.playerIds[(g.dealerSeat + i) % 4]).filter(pid => hasFlowersInHand(g, pid));
+  const ordered = [0, 1, 2, 3].map(i => g.playerIds[(g.dealerSeat + i) % 4]);
   return startFlowerStage(room, ordered, true);
 }
 
@@ -388,7 +391,10 @@ function continueAfterFlowerStage(room) {
   const pid = pending.currentPlayer;
   if (hasFlowersInHand(g, pid)) return promptFlowerReplacement(room, pid);
 
-  pending.queue = pending.queue.filter(id => id !== pid && hasFlowersInHand(g, id));
+  pending.queue.shift();
+  if (hasFlowersInHand(g, pid)) pending.queue.push(pid);
+  while (pending.queue.length && !hasFlowersInHand(g, pending.queue[0])) pending.queue.shift();
+
   if (pending.queue.length) {
     pending.currentPlayer = pending.queue[0];
     g.currentTurn = g.playerIds.indexOf(pending.currentPlayer);
@@ -400,7 +406,7 @@ function continueAfterFlowerStage(room) {
   g.phase = 'playing';
   if (opening) {
     const dealerPid = currentPlayer(g);
-    const firstTile = drawTile(g, dealerPid);
+    const firstTile = g.ruleset === 'pingyang_taipao' ? null : drawTile(g, dealerPid);
     broadcastGameState(g.roomId);
     return beginTurnForPlayer(room, dealerPid, firstTile, { canTianhu: true });
   }
@@ -470,6 +476,10 @@ function handleFlowerReplace(room, playerId, requestedTiles = []) {
   const result = replaceFlowerTiles(g, playerId, requestedTiles);
   if (!result.replaced.length) return false;
   logRoom(room, `${playerLabel(room, playerId)} 补花 ${result.replaced.map(tileName).join(' ')}`);
+  const pending = g.pendingFlower;
+  if (result.stillHasFlowers && pending?.currentPlayer === playerId && !pending.queue.includes(playerId)) {
+    pending.queue.push(playerId);
+  }
   continueAfterFlowerStage(room);
   return true;
 }
@@ -513,7 +523,7 @@ function beginNewRound(room) {
   nextGame.dealerStreak = nextDealerStreak;
   nextGame.round = (oldGame.round || 1) + 1;
   for (const pid of nextGame.playerIds) {
-    nextGame.seats[pid] = { score: oldGame.seats[pid]?.score ?? 100 };
+    nextGame.seats[pid] = { score: oldGame.seats[pid]?.score ?? (nextGame.ruleset === 'pingyang_taipao' ? 200 : 100) };
   }
   room.game = nextGame;
   room.eventLog = [];
@@ -522,7 +532,7 @@ function beginNewRound(room) {
   room.settlementPayments = {};
   initRound(nextGame);
   if (room.game.openingRedeal?.playerId) {
-    logRoom(room, `${playerLabel(room, room.game.openingRedeal.playerId)} 起手东南西北中发白，重新洗牌，财神不变`);
+    logRoom(room, `${playerLabel(room, room.game.openingRedeal.playerId)} 起手东南西北中发白，整副牌重洗并重新翻财神`);
   }
   logRoom(room, `新一局开始，财神 ${formatCaijinLog(room.game.caijinTiles || [room.game.caijinTile])}`);
   io.to(roomId).emit('game_started', {
@@ -535,7 +545,7 @@ function beginNewRound(room) {
   });
   if (!maybeStartOpeningFlowerStage(room)) {
     const firstDealerPid = currentPlayer(room.game);
-    const firstTile = drawTile(room.game, firstDealerPid);
+    const firstTile = room.game.ruleset === 'pingyang_taipao' ? null : drawTile(room.game, firstDealerPid);
     beginTurnForPlayer(room, firstDealerPid, firstTile, { canTianhu: true });
   } else {
     promptFlowerReplacement(room, room.game.pendingFlower.currentPlayer);
@@ -546,7 +556,7 @@ function snapshotSettlementBase(room) {
   if (!room?.game) return;
   room.settlementBaseScores = {};
   for (const pid of room.game.playerIds) {
-    room.settlementBaseScores[pid] = room.game.seats[pid]?.score ?? 100;
+    room.settlementBaseScores[pid] = room.game.seats[pid]?.score ?? (room.game.ruleset === 'pingyang_taipao' ? 200 : 100);
   }
   room.settlementPayments = {};
 }
@@ -999,7 +1009,7 @@ io.on('connection', (socket) => {
     room.game = game;
     room.eventLog = [];
     if (game.openingRedeal?.playerId) {
-      logRoom(room, `${playerLabel(room, game.openingRedeal.playerId)} 起手东南西北中发白，重新洗牌，财神不变`);
+      logRoom(room, `${playerLabel(room, game.openingRedeal.playerId)} 起手东南西北中发白，整副牌重洗并重新翻财神`);
     }
     logRoom(room, `游戏开始，财神 ${formatCaijinLog(game.caijinTiles || [game.caijinTile])}`);
 
@@ -1014,7 +1024,7 @@ io.on('connection', (socket) => {
 
     if (!maybeStartOpeningFlowerStage(room)) {
       const dealerPid = currentPlayer(game);
-      const firstTile = drawTile(game, dealerPid);
+      const firstTile = game.ruleset === 'pingyang_taipao' ? null : drawTile(game, dealerPid);
       beginTurnForPlayer(room, dealerPid, firstTile, { canTianhu: true });
     } else {
       promptFlowerReplacement(room, room.game.pendingFlower.currentPlayer);

@@ -187,8 +187,9 @@ function canFormEightPairs(concealed, caijinTile, options = {}) {
 function checkWin(concealed, openMelds, caijinTile, options = {}) {
   if (isPingyangRuleset(options)) {
     const flowerCount = Array.isArray(options.flowers) ? options.flowers.length : 0;
-    if (flowerCount >= 8) {
-      return { win: true, special: 'flowerHu', wildcards: 0, baiCount: 0 };
+    const baiFlowerCount = options.baiCount || 0;
+    if (flowerCount + baiFlowerCount >= 8) {
+      return { win: true, special: 'killPigFlowers', wildcards: 0, baiCount: 0 };
     }
     if (concealed.some(tile => isFlower(tile))) {
       return { win: false };
@@ -221,9 +222,9 @@ function checkWin(concealed, openMelds, caijinTile, options = {}) {
       if (!caijinSet.has(tile)) continue;
       counts[tile] = (counts[tile] || 0) + 1;
     }
-    const canKillPig = wildcards >= 4 && (sameReveal
+    const canKillPig = sameReveal
       ? Object.values(counts).some(count => count >= 2)
-      : Object.values(counts).some(count => count >= 3));
+      : wildcards >= 4 && Object.values(counts).some(count => count >= 3);
     if (canKillPig) return { win: true, special: 'killPig', wildcards, baiCount };
   }
   // 500胡/清一色/四风齐 shortcuts are Ruian-only; Pingyang uses structure + tai scoring.

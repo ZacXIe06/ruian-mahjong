@@ -7,6 +7,11 @@
 <link rel="stylesheet" href="/css/style.css">
 </head>
 <body class="lobby-page">
+<div class="rules-doc-buttons" aria-label="规则文档">
+  <button class="rule-doc-btn" type="button" data-rules-doc="ruian" title="瑞安麻将规则">瑞</button>
+  <button class="rule-doc-btn" type="button" data-rules-doc="pingyang" title="平阳台炮规则">平</button>
+</div>
+
 <div class="lobby-container">
   <h1 class="logo">瑞安麻将</h1>
   <p class="subtitle">4 人联机网页版</p>
@@ -31,12 +36,12 @@
   </div>
 
   <details class="card lobby-rules" open>
-    <summary>开局前看一眼</summary>
+    <summary>开局前看一看</summary>
     <ul>
       <li>创建房间时可以选择规则；瑞安麻将为默认规则。</li>
       <li>任意时间长按自己的手牌，再拖到目标位置，可以整理手牌顺序。</li>
-      <li>结算框里玩家名后的括号是最后财神数量，例如（2）表示有 2 张财神。</li>
-      <li>胡牌后各自填写“我给其他人多少”，分数会自动同步；不填默认 0。</li>
+      <li>结算框里玩家名后的括号：瑞安显示财神数，平阳显示当前牌面台数。</li>
+      <li>胡牌后各自填写“我给其他人多少钱”，分数会自动同步；不填默认 0。</li>
       <li>点“下一局”后会显示确认人数，4/4 后才重新洗牌发牌。</li>
       <li>长按其他玩家姓名可以发补偿红包，也可以在结算后申请换位置。</li>
     </ul>
@@ -56,6 +61,15 @@
 
   <div id="error-msg" class="error-msg"></div>
 </div>
+
+<div class="rule-doc-modal hidden" id="rule-doc-modal" role="dialog" aria-modal="true">
+  <div class="rule-doc-card">
+    <button class="rule-doc-close" type="button" id="rule-doc-close" aria-label="关闭">×</button>
+    <h2 id="rule-doc-title"></h2>
+    <div class="rule-doc-content" id="rule-doc-content"></div>
+  </div>
+</div>
+
 <script src="/socket.io/socket.io.js"></script>
 <script src="/js/lobby.js"></script>
 </body>

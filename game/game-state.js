@@ -61,7 +61,7 @@ function createSeat(game, playerId, wind) {
     discards: [],
     baiCollected: [],
     flowers: [],
-    score: game.seats[playerId]?.score ?? 100,
+    score: game.seats[playerId]?.score ?? (game.ruleset === 'pingyang_taipao' ? 200 : 100),
   };
 }
 
@@ -155,6 +155,11 @@ function dealInitialHands(game, deck) {
     }
   }
 
+  if (isPingyang(game)) {
+    const dealerPid = game.playerIds[game.dealerSeat];
+    if (!drawRawTileForSeat(game, dealerPid, false)) return { redealPlayer: null };
+  }
+
   const redealPlayer = game.playerIds.find(pid =>
     OPENING_REDEAL_TILES.every(tile => game.seats[pid].hand.includes(tile))
   );
@@ -166,13 +171,11 @@ function initRound(game) {
   initSeats(game);
 
   const ruleset = game.ruleset || 'ruian';
-  const firstDeck = shuffle(buildDeck(ruleset));
-  game.diceRoll = Math.ceil(Math.random() * 6);
-  game.caijinTiles = determineCaijinTiles(game.diceRoll, firstDeck, ruleset);
-  game.caijinTile = game.caijinTiles[0] || null;
-
   for (let attempt = 0; attempt < 20; attempt++) {
-    const deck = attempt === 0 ? firstDeck : shuffle(buildDeck(ruleset));
+    const deck = shuffle(buildDeck(ruleset));
+    game.diceRoll = Math.ceil(Math.random() * 6);
+    game.caijinTiles = determineCaijinTiles(game.diceRoll, deck, ruleset);
+    game.caijinTile = game.caijinTiles[0] || null;
     const result = dealInitialHands(game, deck);
     if (!result.redealPlayer) break;
     game.openingRedeal = { playerId: result.redealPlayer, tiles: [...OPENING_REDEAL_TILES] };
@@ -214,7 +217,9 @@ function getPlayableHand(game, playerId) {
 
 function getFlowerTiles(game, playerId) {
   const hand = game.seats[playerId]?.hand || [];
-  return isPingyang(game) ? hand.filter(tile => isFlower(tile) || isBai(tile)) : [];
+  if (!isPingyang(game)) return [];
+  const caijinSet = new Set(game.caijinTiles?.length ? game.caijinTiles : [game.caijinTile].filter(Boolean));
+  return hand.filter(tile => (isFlower(tile) || isBai(tile)) && !caijinSet.has(tile));
 }
 
 function hasFlowersInHand(game, playerId) {
@@ -229,7 +234,7 @@ function replaceFlowerTiles(game, playerId, requestedTiles = []) {
   if (!handFlowers.length) return { replaced: [], drawn: [] };
 
   const requested = Array.isArray(requestedTiles) && requestedTiles.length
-    ? requestedTiles.filter(tile => isFlower(tile) || isBai(tile))
+    ? requestedTiles.filter(tile => handFlowers.includes(tile))
     : handFlowers;
 
   const replaced = [];
@@ -393,7 +398,7 @@ function checkPlayerWin(game, playerId, winTile, isSelfDraw) {
     isGangWin: game.lastDrawWasGang && isSelfDraw,
     winTile: winTile || hand[hand.length - 1] || null,
   });
-  return { ...result, score, win: !!score.qifan };
+  return { ...result, score, win: true };
 }
 
 function countCaijin(game, playerId) {

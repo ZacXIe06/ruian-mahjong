@@ -87,8 +87,8 @@ function determineCaijinTiles(diceRoll, wall, ruleset = 'ruian') {
   if (ruleset !== PINGYANG_RULESET) return [determineCaijin(diceRoll, wall)];
   const firstPos = ((diceRoll - 1) * 2 + 12) % wall.length;
   const secondPos = (firstPos + 2) % wall.length;
-  const first = wall[nextEligibleCaijinIndex(wall, firstPos)];
-  const second = wall[nextEligibleCaijinIndex(wall, secondPos)];
+  const first = wall[firstPos % wall.length];
+  const second = wall[secondPos % wall.length];
   return [...new Set([first, second])];
 }
 

@@ -278,9 +278,9 @@ function detectPingyangPatterns(concealed, openMelds, caijinTile, ctx = {}) {
   const sameCaijinReveal = isPingyang(ctx) && Array.isArray(ctx.caijinTiles) && ctx.caijinTiles.length === 1;
   const caijinCounts = {};
   for (const tile of caijinTiles) caijinCounts[tile] = countTile(allTiles, tile);
-  const killPig = wildcardCount >= 4 && (sameCaijinReveal
-    ? Object.values(caijinCounts).some(count => count >= 2)
-    : Object.values(caijinCounts).some(count => count >= 3));
+  const hasThreeSameCaijin = Object.values(caijinCounts).some(count => count >= 3);
+  const hasSameRevealKillPig = sameCaijinReveal && Object.values(caijinCounts).some(count => count >= 2);
+  const killPig = flowerHu || hasSameRevealKillPig || (wildcardCount >= 4 && hasThreeSameCaijin);
 
   return {
     wildcardCount,
@@ -326,14 +326,14 @@ function calcPingyangCaijinTai(allTiles, ctx = {}) {
     const count = countTile(allTiles, tile);
     if (!count) continue;
     if (sameReveal) {
-      if (count >= 2) pushTai(details, '同财神2张', 13, { qifan: true });
-      else pushTai(details, '同财神1张', 7);
+      if (count >= 2) pushTai(details, '同财神2张', 10);
+      else pushTai(details, '同财神1张', 5);
       continue;
     }
     const honorLike = isHonor(tile) || isBai(tile) || isFlower(tile);
-    if (count >= 3) pushTai(details, `${tile}财神3张`, honorLike ? 11 : 8);
-    else if (count === 2) pushTai(details, `${tile}财神2张`, honorLike ? 7 : 5);
-    else pushTai(details, `${tile}财神1张`, honorLike ? 3 : 2);
+    if (count >= 3) pushTai(details, `${tile}财神3张`, honorLike ? 8 : 5);
+    else if (count === 2) pushTai(details, `${tile}财神2张`, honorLike ? 5 : 3);
+    else pushTai(details, `${tile}财神1张`, honorLike ? 2 : 1);
   }
   return details;
 }
@@ -369,11 +369,6 @@ function calcPingyangWinTai(concealed, openMelds, caijinTile, ctx = {}) {
   const details = calcPingyangFaceTai(concealed, openMelds, caijinTile, ctx);
   const patterns = detectPingyangPatterns(concealed, openMelds, caijinTile, ctx);
 
-  if (patterns.flowerHu) {
-    pushTai(details, '花胡', 52, { qifan: true });
-    return { type: '花胡', totalTai: 52, taiDetails: details, qifan: true, double: true, multiplier: 2 };
-  }
-
   if (ctx.isSelfDraw) pushTai(details, '自摸', 1);
   if (ctx.isGangWin) pushTai(details, '杠上开花', 2);
   if (ctx.isQiangGang) pushTai(details, '抢杠胡', 2);
@@ -384,8 +379,8 @@ function calcPingyangWinTai(concealed, openMelds, caijinTile, ctx = {}) {
     pushTai(details, '单钓将', waitIsCaijin ? 7 : PINGYANG_QIFAN, { qifan: !waitIsCaijin });
   }
   if (patterns.qing === 'banqing') pushTai(details, '混一色', 7);
-  if (patterns.pengpeng) pushTai(details, '对对胡', 7);
-  if (patterns.hardPai) pushTai(details, '硬牌', PINGYANG_QIFAN, { qifan: true });
+  if (patterns.pengpeng) pushTai(details, '对对胡/碰碰胡', 5);
+  if (patterns.hardPai) pushTai(details, '硬牌', 3);
   if (patterns.qing === 'qingyise') pushTai(details, '清一色', PINGYANG_QIFAN, { qifan: true });
   if (patterns.fourWinds) pushTai(details, '四风齐', PINGYANG_QIFAN, { qifan: true });
   if (patterns.menqing) pushTai(details, '门清', PINGYANG_QIFAN, { qifan: true });
@@ -393,8 +388,13 @@ function calcPingyangWinTai(concealed, openMelds, caijinTile, ctx = {}) {
   if (ctx.isDiHu) pushTai(details, '地胡', PINGYANG_QIFAN, { qifan: true });
   if (patterns.hard8Dui) pushTai(details, '硬八对', PINGYANG_QIFAN, { qifan: true });
   if (patterns.killPig) {
-    const base = patterns.wildcardCount >= 6 ? 50 : patterns.wildcardCount >= 5 ? 25 : 4;
-    pushTai(details, '杀猪', base + PINGYANG_QIFAN, { qifan: true });
+    const flowerKill = patterns.flowerHu;
+    const base = flowerKill
+      ? 15
+      : patterns.wildcardCount >= 6 ? 15
+        : patterns.wildcardCount >= 5 ? 12
+          : 10;
+    pushTai(details, flowerKill ? '杀猪（8花）' : '杀猪', base);
   }
 
   const totalTai = details.reduce((sum, item) => sum + item.tai, 0);
@@ -422,7 +422,8 @@ function calcPingyangWinTai(concealed, openMelds, caijinTile, ctx = {}) {
     taiDetails: details,
     qifan,
     double,
-    multiplier: double ? 2 : 1,
+    multiplier: double ? 4 : qifan ? 2 : 1,
+    killPig: patterns.killPig,
   };
 }
 
@@ -455,6 +456,7 @@ function calcWinScore(concealed, openMelds, caijinTile, ctx = {}) {
         dealerRate: 0,
         nondealerRate: 0,
         total: totalTai,
+        mult: totalTai >= PINGYANG_DOUBLE_THRESHOLD ? 4 : totalTai >= PINGYANG_QIFAN ? 2 : 1,
         ruleset: 'pingyang_taipao',
       };
     }
@@ -466,6 +468,7 @@ function calcWinScore(concealed, openMelds, caijinTile, ctx = {}) {
       taiDetails: pingyang.taiDetails,
       qifan: pingyang.qifan,
       double: pingyang.double,
+      killPig: pingyang.killPig,
       qifanTai: PINGYANG_QIFAN,
       doubleThreshold: PINGYANG_DOUBLE_THRESHOLD,
       caijinFen: 0,

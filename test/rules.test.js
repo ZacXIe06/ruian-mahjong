@@ -3,7 +3,7 @@ const assert = require('assert');
 const { checkWin } = require('../game/win-check');
 const { calcWinScore } = require('../game/scorer');
 const { buildDeck, FLOWERS, determineCaijinTiles } = require('../game/tiles');
-const { createGame, replaceFlowerTiles, getFlowerTiles, getPlayableHand, doPeng, doChi, checkPlayerWin } = require('../game/game-state');
+const { createGame, initRound, replaceFlowerTiles, getFlowerTiles, getPlayableHand, doPeng, doChi, checkPlayerWin } = require('../game/game-state');
 const { getChiOptions } = require('../game/rule-logic');
 
 function win(hand, caijin = '4m', melds = []) {
@@ -34,11 +34,14 @@ test('pingyang deck has 144 tiles including 8 flowers', () => {
   }
 });
 
-test('pingyang caijin reveal deduplicates equal tiles', () => {
+test('pingyang caijin reveal deduplicates equal tiles and can reveal bai or flower', () => {
   const wall = ['1m', '1m', '2m', '3m', '4m', '5m', '6m', '7m', '8m', '9m', '1t', '2t', '3t', '4t', '5t'];
   const result = determineCaijinTiles(1, wall, 'pingyang_taipao');
   assert.ok(result.length >= 1 && result.length <= 2);
   assert.strictEqual(new Set(result).size, result.length);
+
+  const withSpecial = ['1m', '1m', '2m', '3m', '4m', '5m', '6m', '7m', '8m', '9m', '1t', '2t', 'bai', '5t', 'chun'];
+  assert.deepStrictEqual(determineCaijinTiles(1, withSpecial, 'pingyang_taipao'), ['bai', 'chun']);
 });
 
 test('pingyang uses multiple caijin tiles as wildcards', () => {
@@ -118,6 +121,23 @@ test('pingyang bai follows flower replacement flow', () => {
   assert.deepStrictEqual(game.seats.a.flowers, ['xia']);
 });
 
+test('pingyang caijin flower or bai is not replaced as flower', () => {
+  const game = createGame('room1', ['a', 'b', 'c', 'd']);
+  game.ruleset = 'pingyang_taipao';
+  game.caijinTile = 'bai';
+  game.caijinTiles = ['bai', 'chun'];
+  game.seats.a = { hand: ['bai', 'chun', 'xia', '1m'], flowers: [], openMelds: [], discards: [], baiCollected: [], score: 200 };
+  assert.deepStrictEqual(getFlowerTiles(game, 'a'), ['xia']);
+});
+
+test('pingyang starts with 200 points and dealer has 17 tiles after deal', () => {
+  const game = createGame('room1', ['a', 'b', 'c', 'd']);
+  game.ruleset = 'pingyang_taipao';
+  initRound(game);
+  assert.strictEqual(game.seats.a.score, 200);
+  assert.strictEqual(game.seats[game.playerIds[game.dealerSeat]].hand.length, 17);
+});
+
 test('pingyang score reports same-caijin special tai and qifan', () => {
   const hand = [
     '3m','3m',
@@ -131,13 +151,13 @@ test('pingyang score reports same-caijin special tai and qifan', () => {
     ruleset: 'pingyang_taipao',
     caijinTiles: ['5m'],
     isSelfDraw: true,
-    flowers: [],
+    flowers: ['chun', 'xia'],
     seatWind: 'east',
   });
   assert.strictEqual(score.ruleset, 'pingyang_taipao');
   assert.ok(score.totalTai >= 13);
   assert.ok(score.qifan);
-  assert.ok(score.taiDetails.some(item => item.tai === 7 || item.tai === 13));
+  assert.ok(score.taiDetails.some(item => item.tai === 5 || item.tai === 10));
 });
 
 test('pingyang flower groups contribute tai details', () => {
@@ -222,7 +242,7 @@ test('pingyang gang tai follows small and high tile table', () => {
   assert.ok(score.taiDetails.some(item => item.label === '暗杠 zhong' && item.tai === 4));
 });
 
-test('pingyang win prompt requires 13 tai qifan', () => {
+test('pingyang win prompt does not require 13 tai qifan', () => {
   const game = createGame('room1', ['a', 'b', 'c', 'd']);
   game.ruleset = 'pingyang_taipao';
   game.caijinTile = '9m';
@@ -245,7 +265,7 @@ test('pingyang win prompt requires 13 tai qifan', () => {
   };
   const result = checkPlayerWin(game, 'a', null, true);
   assert.strictEqual(result.score.qifan, false);
-  assert.strictEqual(result.win, false);
+  assert.strictEqual(result.win, true);
 
   game.seats.a.flowers = ['chun', 'xia', 'qiu', 'dong'];
   const qifan = checkPlayerWin(game, 'a', null, true);
@@ -269,7 +289,7 @@ test('pingyang face tai preview excludes win-only tai', () => {
     seatWind: 'east',
     faceOnly: true,
   });
-  assert.strictEqual(preview.totalTai, 4);
+  assert.strictEqual(preview.totalTai, 3);
   assert.ok(!preview.taiDetails.some(item => item.label === '自摸'));
 
   const winScore = calcWinScore(hand, [], '9m', {
@@ -461,7 +481,7 @@ test('pingyang flower hu wins directly with eight flowers', () => {
     flowers: ['chun','xia','qiu','dong','mei','lan','zhu','ju'],
   });
   assert.strictEqual(result.win, true);
-  assert.strictEqual(result.special, 'flowerHu');
+  assert.strictEqual(result.special, 'killPigFlowers');
 });
 
 test('pingyang kill pig wins directly when enough matching caijin are held', () => {

@@ -71,6 +71,89 @@ input[type=text]:focus { border-color: #2d6a4f; }
 .lobby-rules li::marker {
   color: #2d6a4f;
 }
+.rules-doc-buttons {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right, 0px));
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  gap: 12px;
+  z-index: 60;
+}
+.rule-doc-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.72);
+  background: rgba(255,255,255,.96);
+  color: #1f5138;
+  font-weight: 900;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 8px 22px rgba(0,0,0,.22);
+  transition: transform .15s, background .15s;
+}
+.rule-doc-btn:hover { transform: translateY(-1px); background: #fff7c8; }
+.rule-doc-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(8, 28, 20, .68);
+}
+.rule-doc-card {
+  position: relative;
+  width: min(760px, calc(100vw - 28px));
+  max-height: min(82vh, 760px);
+  overflow: auto;
+  background: #fbfffc;
+  color: #1f3328;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 18px 60px rgba(0,0,0,.36);
+}
+.rule-doc-card h2 {
+  color: #1f5138;
+  font-size: 1.35rem;
+  margin-bottom: 12px;
+}
+.rule-doc-close {
+  position: sticky;
+  top: 0;
+  float: right;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: #e8f5e9;
+  color: #1f5138;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.rule-doc-content { display: grid; gap: 12px; font-size: .92rem; line-height: 1.65; }
+.rule-doc-content h3 { color: #2d6a4f; font-size: 1.02rem; margin-top: 4px; }
+.rule-doc-content ul { padding-left: 20px; display: grid; gap: 4px; }
+.rule-doc-content .rule-note {
+  background: #eef8f0;
+  border-left: 4px solid #2d6a4f;
+  padding: 10px 12px;
+  border-radius: 6px;
+}
+@media (max-width: 720px) {
+  .rules-doc-buttons {
+    right: 10px;
+    top: auto;
+    bottom: 18px;
+    transform: none;
+    grid-auto-flow: column;
+  }
+  .rule-doc-btn { width: 42px; height: 42px; }
+  .rule-doc-card { padding: 18px; max-height: 86vh; }
+}
 
 /* ===== Game Board ===== */
 .game-page {
